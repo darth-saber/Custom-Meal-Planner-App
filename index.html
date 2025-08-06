@@ -314,8 +314,25 @@
 
         async function initFirebase() {
             try {
-                const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
-                currentAppId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+                // --- FIX: Ensure projectId is present ---
+                let firebaseConfig;
+                if (typeof __firebase_config !== 'undefined') {
+                    firebaseConfig = JSON.parse(__firebase_config);
+                } else {
+                    // Provide a fallback config with a dummy projectId
+                    firebaseConfig = {
+                        apiKey: "dummy-api-key",
+                        authDomain: "dummy.firebaseapp.com",
+                        projectId: "dummy-project-id"
+                        // Add other required fields if needed
+                    };
+                }
+
+                if (!firebaseConfig.projectId) {
+                    throw new Error('Firebase config missing "projectId". Please set it in your deployment or environment.');
+                }
+
+                currentAppId = typeof __app_id !== 'undefined' ? __app_id : firebaseConfig.projectId || 'default-app-id';
 
                 const firebaseApp = initializeApp(firebaseConfig);
                 db = getFirestore(firebaseApp);
