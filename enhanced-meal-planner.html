@@ -1078,7 +1078,492 @@
             });
         }
 
-        // Voice recognition and other functions...
+        // 11. Edit meal
+        function editMeal(id) {
+            const meal = meals.find(m => m.id === id);
+            if (meal) {
+                // Populate form with meal data
+                document.getElementById('meal-name').value = meal.name;
+                document.getElementById('meal-category').value = meal.category;
+                document.getElementById('meal-ingredients').value = meal.ingredients;
+                document.getElementById('meal-instructions').value = meal.instructions;
+                document.getElementById('meal-time').value = meal.time;
+                document.getElementById('meal-servings').value = meal.servings;
+                document.getElementById('meal-calories').value = meal.calories;
+                document.getElementById('meal-protein').value = meal.protein;
+                document.getElementById('meal-carbs').value = meal.carbs;
+                document.getElementById('meal-fat').value = meal.fat;
+                document.getElementById('meal-tags').value = meal.tags.join(', ');
+                document.getElementById('meal-image').value = meal.image || '';
+                
+                // Remove the meal and let user update via form
+                meals = meals.filter(m => m.id !== id);
+                saveMeals();
+                renderMeals();
+                updateStats();
+                
+                // Scroll to form
+                document.getElementById('meal-form').scrollIntoView({ behavior: 'smooth' });
+            }
+        }
+
+        // 12. Generate shopping list
+        function generateShoppingList() {
+            const weekMeals = meals.filter(meal => 
+                new Date(meal.createdAt) > new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
+            );
+            
+            const ingredients = new Set();
+            weekMeals.forEach(meal => {
+                meal.ingredients.split('\n').forEach(ingredient => {
+                    if (ingredient.trim()) {
+                        ingredients.add(ingredient.trim());
+                    }
+                });
+            });
+            
+            shoppingList = Array.from(ingredients).map(item => ({
+                id: Date.now() + Math.random(),
+                name: item,
+                checked: false
+            }));
+            
+            saveShoppingList();
+            renderShoppingList();
+            showNotification('Shopping list generated!', 'success');
+        }
+
+        // 13. Save shopping list
+        function saveShoppingList() {
+            localStorage.setItem('shoppingList', JSON.stringify(shoppingList));
+        }
+
+        // 14. Render shopping list
+        function renderShoppingList() {
+            const list = document.getElementById('shopping-list');
+            list.innerHTML = shoppingList.map(item => `
+                <li class="shopping-item">
+                    <div class="shopping-checkbox ${item.checked ? 'checked' : ''}" 
+                         onclick="toggleShoppingItem(${item.id})"></div>
+                    <span style="${item.checked ? 'text-decoration: line-through; opacity: 0.6;' : ''}">
+                        ${item.name}
+                    </span>
+                    <button class="btn btn-sm btn-danger" onclick="removeShoppingItem(${item.id})">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </li>
+            `).join('');
+        }
+
+        // 15. Toggle shopping item
+        function toggleShoppingItem(id) {
+            const item = shoppingList.find(i => i.id === id);
+            if (item) {
+                item.checked = !item.checked;
+                saveShoppingList();
+                renderShoppingList();
+            }
+        }
+
+        // 16. Remove shopping item
+        function removeShoppingItem(id) {
+            shoppingList = shoppingList.filter(i => i.id !== id);
+            saveShoppingList();
+            renderShoppingList();
+        }
+
+        // 17. Export meals
+        function exportMeals() {
+            const data = JSON.stringify(meals, null, 2);
+            const blob = new Blob([data], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'meals.json';
+            a.click();
+            URL.revokeObjectURL(url);
+            showNotification('Meals exported successfully!', 'success');
+        }
+
+        // 18. Import meals
+        function importMeals() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.json';
+            input.onchange = function(e) {
+                const file = e.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        try {
+                            const importedMeals = JSON.parse(e.target.result);
+                            meals = [...meals, ...importedMeals];
+                            saveMeals();
+                            renderMeals();
+                            updateStats();
+                            showNotification('Meals imported successfully!', 'success');
+                        } catch (error) {
+                            showNotification('Error importing meals!', 'error');
+                        }
+                    };
+                    reader.readAsText(file);
+                }
+            };
+            input.click();
+        }
+
+        // 19. Random meal
+        function randomMeal() {
+            if (meals.length === 0) {
+                showNotification('No meals available!', 'info');
+                return;
+            }
+            const randomIndex = Math.floor(Math.random() * meals.length);
+            viewMeal(meals[randomIndex].id);
+        }
+
+        // 20. Duplicate last meal
+        function duplicateLastMeal() {
+            if (meals.length === 0) {
+                showNotification('No meals to duplicate!', 'info');
+                return;
+            }
+            const lastMeal = meals[meals.length - 1];
+            const newMeal = { ...lastMeal, id: Date.now() + Math.random(), createdAt: new Date().toISOString() };
+            meals.push(newMeal);
+            saveMeals();
+            renderMeals();
+            updateStats();
+            showNotification('Meal duplicated!', 'success');
+        }
+
+        // 21. Clear all meals
+        function clearAllMeals() {
+            if (confirm('Are you sure you want to clear all meals? This cannot be undone.')) {
+                meals = [];
+                saveMeals();
+                renderMeals();
+                updateStats();
+                showNotification('All meals cleared!', 'info');
+            }
+        }
+
+        // 22. Backup data
+        function backupData() {
+            const data = {
+                meals: meals,
+                shoppingList: shoppingList,
+                userProfile: userProfile
+            };
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'meal-planner-backup.json';
+            a.click();
+            URL.revokeObjectURL(url);
+            showNotification('Data backed up successfully!', 'success');
+        }
+
+        // 23. Print meal
+        function printMeal(id) {
+            const meal = meals.find(m => m.id === id);
+            if (meal) {
+                const printWindow = window.open('', '_blank');
+                printWindow.document.write(`
+                    <html>
+                        <head>
+                            <title>${meal.name}</title>
+                            <style>
+                                body { font-family: Arial, sans-serif; margin: 20px; }
+                                h1 { color: #2563eb; }
+                                .section { margin: 20px 0; }
+                                .nutrition { display: flex; gap: 20px; }
+                                .nutrition div { background: #f3f4f6; padding: 10px; border-radius: 5px; }
+                            </style>
+                        </head>
+                        <body>
+                            <h1>${meal.name}</h1>
+                            <div class="section">
+                                <h3>Ingredients</h3>
+                                <p>${meal.ingredients}</p>
+                            </div>
+                            <div class="section">
+                                <h3>Instructions</h3>
+                                <p>${meal.instructions}</p>
+                            </div>
+                            <div class="section">
+                                <h3>Nutrition Facts</h3>
+                                <div class="nutrition">
+                                    <div>Calories: ${meal.calories}</div>
+                                    <div>Protein: ${meal.protein}g</div>
+                                    <div>Carbs: ${meal.carbs}g</div>
+                                    <div>Fat: ${meal.fat}g</div>
+                                </div>
+                            </div>
+                        </body>
+                    </html>
+                `);
+                printWindow.document.close();
+                printWindow.print();
+            }
+        }
+
+        // 24. Share meal
+        function shareMeal(id) {
+            const meal = meals.find(m => m.id === id);
+            if (meal && navigator.share) {
+                navigator.share({
+                    title: meal.name,
+                    text: `Check out this recipe: ${meal.name} - ${meal.ingredients}`,
+                    url: window.location.href
+                });
+            } else {
+                showNotification('Sharing not supported on this device', 'info');
+            }
+        }
+
+        // 25. Add to calendar
+        function addToCalendar(id) {
+            showNotification('Calendar feature coming soon!', 'info');
+        }
+
+        // 26. Generate AI meal
+        function generateAIMeal() {
+            const aiMeals = [
+                {
+                    name: 'Mediterranean Quinoa Bowl',
+                    category: 'lunch',
+                    ingredients: '1 cup quinoa, 2 cups vegetable broth, 1 cucumber, 2 tomatoes, 1/2 red onion, 1/4 cup olives, 1/4 cup feta cheese, 2 tbsp olive oil, 1 tbsp lemon juice',
+                    instructions: 'Cook quinoa in broth. Dice vegetables. Mix everything together.',
+                    time: 25,
+                    calories: 420,
+                    protein: 12,
+                    carbs: 45,
+                    fat: 22,
+                    tags: 'healthy, mediterranean, vegetarian'
+                },
+                {
+                    name: 'Spicy Chicken Stir-Fry',
+                    category: 'dinner',
+                    ingredients: '500g chicken breast, 2 bell peppers, 1 broccoli, 3 cloves garlic, 2 tbsp soy sauce, 1 tbsp sriracha, 1 tbsp sesame oil',
+                    instructions: 'Slice chicken and vegetables. Stir-fry chicken until cooked. Add vegetables and sauce. Cook for 5 minutes.',
+                    time: 30,
+                    calories: 380,
+                    protein: 35,
+                    carbs: 20,
+                    fat: 18,
+                    tags: 'spicy, asian, high-protein'
+                }
+            ];
+            
+            const randomMeal = aiMeals[Math.floor(Math.random() * aiMeals.length)];
+            const meal = new Meal(randomMeal);
+            meals.push(meal);
+            saveMeals();
+            renderMeals();
+            updateStats();
+            showNotification('AI meal generated!', 'success');
+        }
+
+        // 27. Render calendar
+        function renderCalendar() {
+            const calendar = document.getElementById('meal-calendar');
+            const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+            const today = new Date();
+            
+            let calendarHTML = '<div class="calendar">';
+            days.forEach(day => {
+                calendarHTML += `<div style="text-align: center; font-weight: bold; padding: 8px;">${day}</div>`;
+            });
+            
+            for (let i = 0; i < 7; i++) {
+                const date = new Date(today);
+                date.setDate(today.getDate() + i);
+                const hasMeal = meals.some(meal => 
+                    new Date(meal.createdAt).toDateString() === date.toDateString()
+                );
+                
+                calendarHTML += `
+                    <div class="calendar-day ${hasMeal ? 'has-meal' : ''}" 
+                         onclick="showDayMeals('${date.toDateString()}')">
+                        ${date.getDate()}
+                    </div>
+                `;
+            }
+            calendarHTML += '</div>';
+            calendar.innerHTML = calendarHTML;
+        }
+
+        // 28. Show day meals
+        function showDayMeals(dateString) {
+            const dayMeals = meals.filter(meal => 
+                new Date(meal.createdAt).toDateString() === dateString
+            );
+            
+            if (dayMeals.length > 0) {
+                alert(`Meals for ${dateString}:\n${dayMeals.map(m => m.name).join('\n')}`);
+            } else {
+                alert(`No meals planned for ${dateString}`);
+            }
+        }
+
+        // 29. Previous week
+        function previousWeek() {
+            currentWeek.setDate(currentWeek.getDate() - 7);
+            renderCalendar();
+        }
+
+        // 30. Next week
+        function nextWeek() {
+            currentWeek.setDate(currentWeek.getDate() + 7);
+            renderCalendar();
+        }
+
+        // 31. Load user profile
+        function loadUserProfile() {
+            document.getElementById('user-name').value = userProfile.name;
+            document.getElementById('user-goals').value = userProfile.goals;
+            document.getElementById('user-calories').value = userProfile.calories;
+        }
+
+        // 32. Save user profile
+        document.getElementById('profile-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            userProfile.name = document.getElementById('user-name').value;
+            userProfile.goals = document.getElementById('user-goals').value;
+            userProfile.calories = parseInt(document.getElementById('user-calories').value);
+            localStorage.setItem('userProfile', JSON.stringify(userProfile));
+            closeModal();
+            showNotification('Profile updated!', 'success');
+        });
+
+        // 33. Show notification
+        function showNotification(message, type = 'info') {
+            const notification = document.createElement('div');
+            notification.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                padding: 16px 24px;
+                border-radius: 8px;
+                color: white;
+                font-weight: 500;
+                z-index: 1001;
+                animation: slideIn 0.3s ease;
+                ${type === 'success' ? 'background: #10b981;' : 
+                  type === 'error' ? 'background: #ef4444;' : 
+                  'background: #3b82f6;'}
+            `;
+            notification.textContent = message;
+            
+            document.body.appendChild(notification);
+            
+            setTimeout(() => {
+                notification.style.animation = 'slideOut 0.3s ease';
+                setTimeout(() => notification.remove(), 300);
+            }, 3000);
+        }
+
+        // 34. Voice recognition
+        function startVoiceRecognition() {
+            if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+                const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+                const recognition = new SpeechRecognition();
+                
+                recognition.onresult = function(event) {
+                    const command = event.results[0][0].transcript.toLowerCase();
+                    
+                    if (command.includes('add meal')) {
+                        document.getElementById('meal-form').scrollIntoView({ behavior: 'smooth' });
+                    } else if (command.includes('random meal')) {
+                        randomMeal();
+                    } else if (command.includes('shopping list')) {
+                        generateShoppingList();
+                    }
+                };
+                
+                recognition.start();
+                showNotification('Listening...', 'info');
+            } else {
+                showNotification('Voice recognition not supported', 'error');
+            }
+        }
+
+        // 35. Filter meals
+        document.querySelectorAll('.filter-chip').forEach(chip => {
+            chip.addEventListener('click', function() {
+                document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+                this.classList.add('active');
+                renderMeals(this.dataset.category);
+            });
+        });
+
+        // 36. Search functionality
+        function searchMeals(query) {
+            const filtered = meals.filter(meal => 
+                meal.name.toLowerCase().includes(query.toLowerCase()) ||
+                meal.ingredients.toLowerCase().includes(query.toLowerCase()) ||
+                meal.tags.some(tag => tag.toLowerCase().includes(query.toLowerCase()))
+            );
+            renderFilteredMeals(filtered);
+        }
+
+        // 37. Render filtered meals
+        function renderFilteredMeals(filteredMeals) {
+            const grid = document.getElementById('meal-grid');
+            grid.innerHTML = filteredMeals.map(meal => `
+                <div class="meal-card" data-id="${meal.id}">
+                    <div class="meal-image">
+                        ${meal.image ? `<img src="${meal.image}" alt="${meal.name}" style="width: 100%; height: 100%; object-fit: cover;">` : 
+                        `<i class="fas fa-utensils"></i>`}
+                    </div>
+                    <div class="meal-content">
+                        <h3 class="meal-title">${meal.name}</h3>
+                        <div class="meal-meta">
+                            <span><i class="fas fa-clock"></i> ${meal.time} min</span>
+                            <span><i class="fas fa-users"></i> ${meal.servings} servings</span>
+                            <span><i class="fas fa-fire"></i> ${meal.calories} cal</span>
+                        </div>
+                        <div class="meal-tags">
+                            ${meal.tags.map(tag => `<span class="tag">${tag}</span>`).join('')}
+                        </div>
+                        <div style="display: flex; gap: 8px; margin-top: 12px;">
+                            <button class="btn btn-sm btn-primary" onclick="viewMeal(${meal.id})">
+                                <i class="fas fa-eye"></i> View
+                            </button>
+                            <button class="btn btn-sm btn-secondary" onclick="editMeal(${meal.id})">
+                                <i class="fas fa-edit"></i> Edit
+                            </button>
+                            <button class="btn btn-sm btn-danger" onclick="deleteMeal(${meal.id})">
+                                <i class="fas fa-trash"></i> Delete
+                            </button>
+                            <button class="btn btn-sm ${meal.favorite ? 'btn-accent' : 'btn-secondary'}" 
+                                    onclick="toggleFavorite(${meal.id})">
+                                <i class="fas fa-heart${meal.favorite ? '' : '-o'}"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Add CSS animations for notifications
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes slideIn {
+                from { transform: translateX(100%); opacity: 0; }
+                to { transform: translateX(0); opacity: 1; }
+            }
+            @keyframes slideOut {
+                from { transform: translateX(0); opacity: 1; }
+                to { transform: translateX(100%); opacity: 0; }
+            }
+        `;
+        document.head.appendChild(style);
+
+        // Initialize everything
+        console.log('Meal Planner Pro initialized successfully!');
     </script>
 </body>
 </html>
